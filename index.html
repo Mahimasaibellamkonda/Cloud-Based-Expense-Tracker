@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Expense Tracker</title>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background: #f4f7fb;
+            color: #1f2937;
+            min-height: 100vh;
+        }
+
+        header {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+
+        header h1 {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        header p {
+            opacity: 0.9;
+        }
+
+        .cloud-status {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 7px 14px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.18);
+            font-size: 14px;
+        }
+
+        .container {
+            width: 92%;
+            max-width: 1100px;
+            margin: 30px auto;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 22px;
+            border-radius: 15px;
+            box-shadow: 0 5px 18px rgba(0,0,0,0.08);
+        }
+
+        .summary-card h3 {
+            color: #6b7280;
+            font-size: 15px;
+            margin-bottom: 10px;
+        }
+
+        .summary-card .amount {
+            font-size: 27px;
+            font-weight: bold;
+        }
+
+        .expense-color {
+            color: #ef4444;
+        }
+
+        .count-color {
+            color: #4f46e5;
+        }
+
+        .average-color {
+            color: #059669;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 25px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 18px rgba(0,0,0,0.08);
+        }
+
+        .card h2 {
+            margin-bottom: 20px;
+            color: #111827;
+        }
+
+        label {
+            display: block;
+            margin: 13px 0 6px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            outline: none;
+            font-size: 14px;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: #6366f1;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            border: none;
+            padding: 12px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .add-btn {
+            background: #4f46e5;
+            color: white;
+            flex: 1;
+        }
+
+        .clear-btn {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            opacity: 0.9;
+        }
+
+        .search-box {
+            margin-bottom: 18px;
+        }
+
+        .expense-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .expense-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .expense-info {
+            flex: 1;
+        }
+
+        .expense-info h3 {
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .expense-info p {
+            color: #6b7280;
+            font-size: 13px;
+            margin: 3px 0;
+        }
+
+        .expense-amount {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ef4444;
+            white-space: nowrap;
+        }
+
+        .item-actions {
+            display: flex;
+            gap: 7px;
+        }
+
+        .edit-btn {
+            background: #f59e0b;
+            color: white;
+            padding: 8px 11px;
+        }
+
+        .delete-btn {
+            background: #ef4444;
+            color: white;
+            padding: 8px 11px;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 35px;
+            color: #9ca3af;
+        }
+
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            display: none;
+            font-size: 14px;
+        }
+
+        .success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        footer {
+            text-align: center;
+            padding: 25px;
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        @media (max-width: 800px) {
+            .summary {
+                grid-template-columns: 1fr;
+            }
+
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 500px) {
+            .expense-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .item-actions {
+                width: 100%;
+            }
+
+            .item-actions button {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>☁️ Cloud Expense Tracker</h1>
+    <p>Track and manage your expenses using Firebase Cloud Database</p>
+    <div class="cloud-status">🟢 Connected to Firebase</div>
+</header>
+
+<div class="container">
+
+    <!-- SUMMARY -->
+    <div class="summary">
+
+        <div class="summary-card">
+            <h3>Total Expenses</h3>
+            <div class="amount expense-color" id="totalAmount">₹0.00</div>
+        </div>
+
+        <div class="summary-card">
+            <h3>Number of Expenses</h3>
+            <div class="amount count-color" id="expenseCount">0</div>
+        </div>
+
+        <div class="summary-card">
+            <h3>Average Expense</h3>
+            <div class="amount average-color" id="averageAmount">₹0.00</div>
+        </div>
+
+    </div>
+
+    <div class="main-grid">
+
+        <!-- ADD EXPENSE -->
+        <div class="card">
+
+            <h2 id="formTitle">Add Expense</h2>
+
+            <label>Expense Name</label>
+            <input type="text" id="expenseName" placeholder="Example: Grocery">
+
+            <label>Amount (₹)</label>
+            <input type="number" id="expenseAmount" placeholder="Example: 500">
+
+            <label>Category</label>
+            <select id="expenseCategory">
+                <option value="">Select category</option>
+                <option value="Food">🍔 Food</option>
+                <option value="Travel">🚗 Travel</option>
+                <option value="Shopping">🛍️ Shopping</option>
+                <option value="Bills">💡 Bills</option>
+                <option value="Education">📚 Education</option>
+                <option value="Entertainment">🎬 Entertainment</option>
+                <option value="Health">🏥 Health</option>
+                <option value="Other">📦 Other</option>
+            </select>
+
+            <label>Date</label>
+            <input type="date" id="expenseDate">
+
+            <div class="buttons">
+                <button class="add-btn" id="saveBtn" onclick="saveExpense()">
+                    Add Expense
+                </button>
+
+                <button class="clear-btn" onclick="clearForm()">
+                    Clear
+                </button>
+            </div>
+
+            <div id="message" class="message"></div>
+
+        </div>
+
+
+        <!-- EXPENSE LIST -->
+        <div class="card">
+
+            <h2>Expense History</h2>
+
+            <div class="search-box">
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="🔍 Search expenses..."
+                    oninput="displayExpenses()"
+                >
+            </div>
+
+            <div id="expenseList" class="expense-list">
+                <div class="empty">
+                    Loading expenses...
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<footer>
+    Cloud Expense Tracker | Firebase Realtime Database
+</footer>
+
+
+<script>
+
+    // ==========================================
+    // FIREBASE CONFIGURATION
+    // ==========================================
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCEQ4bL7WknIijCxudsBUD_j2bMUlTarb8",
+        authDomain: "cloud-expense-tracker-ec391.firebaseapp.com",
+        databaseURL: "https://cloud-expense-tracker-ec391-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "cloud-expense-tracker-ec391",
+        storageBucket: "cloud-expense-tracker-ec391.firebasestorage.app",
+        messagingSenderId: "1090513852144",
+        appId: "1:1090513852144:web:6561ba61f9386ff2409435",
+        measurementId: "G-F3FXBPQR4S"
+    };
+
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+
+    // Connect to Realtime Database
+    const database = firebase.database();
+
+    // Reference to expenses
+    const expensesRef = database.ref("expenses");
+
+
+    // ==========================================
+    // VARIABLES
+    // ==========================================
+
+    let expenses = [];
+    let editingId = null;
+
+
+    // ==========================================
+    // SET TODAY'S DATE
+    // ==========================================
+
+    document.getElementById("expenseDate").value =
+        new Date().toISOString().split("T")[0];
+
+
+    // ==========================================
+    // READ DATA FROM FIREBASE
+    // ==========================================
+
+    expensesRef.on("value", function(snapshot) {
+
+        expenses = [];
+
+        snapshot.forEach(function(childSnapshot) {
+
+            const data = childSnapshot.val();
+
+            expenses.push({
+                id: childSnapshot.key,
+                name: data.name,
+                amount: Number(data.amount),
+                category: data.category,
+                date: data.date
+            });
+
+        });
+
+        // Newest first
+        expenses.sort(function(a, b) {
+            return new Date(b.date) - new Date(a.date);
+        });
+
+        displayExpenses();
+        updateSummary();
+
+    }, function(error) {
+
+        console.error(error);
+
+        showMessage(
+            "Could not connect to Firebase. Check your database rules.",
+            "error"
+        );
+
+    });
+
+
+    // ==========================================
+    // ADD / UPDATE EXPENSE
+    // ==========================================
+
+    function saveExpense() {
+
+        const name =
+            document.getElementById("expenseName").value.trim();
+
+        const amount =
+            Number(document.getElementById("expenseAmount").value);
+
+        const category =
+            document.getElementById("expenseCategory").value;
+
+        const date =
+            document.getElementById("expenseDate").value;
+
+
+        // Validation
+        if (!name || !amount || amount <= 0 || !category || !date) {
+
+            showMessage(
+                "Please fill all fields correctly.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        const expenseData = {
+            name: name,
+            amount: amount,
+            category: category,
+            date: date
+        };
+
+
+        // UPDATE
+        if (editingId) {
+
+            expensesRef
+                .child(editingId)
+                .update(expenseData)
+                .then(function() {
+
+                    showMessage(
+                        "Expense updated successfully!",
+                        "success"
+                    );
+
+                    clearForm();
+
+                })
+                .catch(function(error) {
+
+                    showMessage(
+                        "Update failed: " + error.message,
+                        "error"
+                    );
+
+                });
+
+        }
+
+        // ADD
+        else {
+
+            expensesRef
+                .push(expenseData)
+                .then(function() {
+
+                    showMessage(
+                        "Expense added to cloud successfully!",
+                        "success"
+                    );
+
+                    clearForm();
+
+                })
+                .catch(function(error) {
+
+                    showMessage(
+                        "Could not add expense: " + error.message,
+                        "error"
+                    );
+
+                });
+
+        }
+
+    }
+
+
+    // ==========================================
+    // DELETE EXPENSE
+    // ==========================================
+
+    function deleteExpense(id) {
+
+        const confirmDelete =
+            confirm("Are you sure you want to delete this expense?");
+
+        if (!confirmDelete) {
+            return;
+        }
+
+        expensesRef
+            .child(id)
+            .remove()
+            .then(function() {
+
+                showMessage(
+                    "Expense deleted successfully!",
+                    "success"
+                );
+
+            })
+            .catch(function(error) {
+
+                showMessage(
+                    "Delete failed: " + error.message,
+                    "error"
+                );
+
+            });
+
+    }
+
+
+    // ==========================================
+    // EDIT EXPENSE
+    // ==========================================
+
+    function editExpense(id) {
+
+        const expense =
+            expenses.find(function(item) {
+                return item.id === id;
+            });
+
+        if (!expense) {
+            return;
+        }
+
+        document.getElementById("expenseName").value =
+            expense.name;
+
+        document.getElementById("expenseAmount").value =
+            expense.amount;
+
+        document.getElementById("expenseCategory").value =
+            expense.category;
+
+        document.getElementById("expenseDate").value =
+            expense.date;
+
+
+        editingId = id;
+
+
+        document.getElementById("formTitle").innerText =
+            "Update Expense";
+
+        document.getElementById("saveBtn").innerText =
+            "Update Expense";
+
+
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+        });
+
+    }
+
+
+    // ==========================================
+    // DISPLAY EXPENSES
+    // ==========================================
+
+    function displayExpenses() {
+
+        const list =
+            document.getElementById("expenseList");
+
+        const search =
+            document.getElementById("searchInput")
+                .value
+                .toLowerCase()
+                .trim();
+
+
+        const filteredExpenses =
+            expenses.filter(function(expense) {
+
+                return (
+                    expense.name.toLowerCase().includes(search) ||
+                    expense.category.toLowerCase().includes(search)
+                );
+
+            });
+
+
+        if (filteredExpenses.length === 0) {
+
+            list.innerHTML = `
+                <div class="empty">
+                    No expenses found.
+                </div>
+            `;
+
+            return;
+        }
+
+
+        list.innerHTML = "";
+
+
+        filteredExpenses.forEach(function(expense) {
+
+            const item =
+                document.createElement("div");
+
+            item.className = "expense-item";
+
+
+            item.innerHTML = `
+
+                <div class="expense-info">
+
+                    <h3>${escapeHTML(expense.name)}</h3>
+
+                    <p>
+                        Category: ${escapeHTML(expense.category)}
+                    </p>
+
+                    <p>
+                        Date: ${formatDate(expense.date)}
+                    </p>
+
+                </div>
+
+                <div class="expense-amount">
+                    ₹${expense.amount.toFixed(2)}
+                </div>
+
+                <div class="item-actions">
+
+                    <button
+                        class="edit-btn"
+                        onclick="editExpense('${expense.id}')">
+                        Edit
+                    </button>
+
+                    <button
+                        class="delete-btn"
+                        onclick="deleteExpense('${expense.id}')">
+                        Delete
+                    </button>
+
+                </div>
+
+            `;
+
+
+            list.appendChild(item);
+
+        });
+
+    }
+
+
+    // ==========================================
+    // UPDATE SUMMARY
+    // ==========================================
+
+    function updateSummary() {
+
+        const total =
+            expenses.reduce(function(sum, expense) {
+
+                return sum + Number(expense.amount);
+
+            }, 0);
+
+
+        const count = expenses.length;
+
+
+        const average =
+            count > 0 ? total / count : 0;
+
+
+        document.getElementById("totalAmount")
+            .innerText =
+            "₹" + total.toFixed(2);
+
+
+        document.getElementById("expenseCount")
+            .innerText =
+            count;
+
+
+        document.getElementById("averageAmount")
+            .innerText =
+            "₹" + average.toFixed(2);
+
+    }
+
+
+    // ==========================================
+    // CLEAR FORM
+    // ==========================================
+
+    function clearForm() {
+
+        document.getElementById("expenseName").value = "";
+
+        document.getElementById("expenseAmount").value = "";
+
+        document.getElementById("expenseCategory").value = "";
+
+        document.getElementById("expenseDate").value =
+            new Date().toISOString().split("T")[0];
+
+
+        editingId = null;
+
+
+        document.getElementById("formTitle").innerText =
+            "Add Expense";
+
+        document.getElementById("saveBtn").innerText =
+            "Add Expense";
+
+    }
+
+
+    // ==========================================
+    // MESSAGE
+    // ==========================================
+
+    function showMessage(text, type) {
+
+        const message =
+            document.getElementById("message");
+
+
+        message.innerText = text;
+
+        message.className =
+            "message " + type;
+
+        message.style.display = "block";
+
+
+        setTimeout(function() {
+
+            message.style.display = "none";
+
+        }, 3000);
+
+    }
+
+
+    // ==========================================
+    // FORMAT DATE
+    // ==========================================
+
+    function formatDate(dateString) {
+
+        const date =
+            new Date(dateString + "T00:00:00");
+
+        return date.toLocaleDateString(
+            "en-IN",
+            {
+                day: "2-digit",
+                month: "short",
+                year: "numeric"
+            }
+        );
+
+    }
+
+
+    // ==========================================
+    // SECURITY: ESCAPE USER INPUT
+    // ==========================================
+
+    function escapeHTML(value) {
+
+        return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+
+    }
+
+</script>
+
+</body>
+</html>
